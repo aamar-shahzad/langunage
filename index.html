@@ -46,29 +46,6 @@
         <span id="status-text" class="status-text">Load the model to start</span>
       </div>
 
-      <div class="daily-wrap">
-        <div class="daily-stats">
-          <div class="daily-card">
-            <div class="daily-k">Runs today</div>
-            <div id="runs-today" class="daily-v">0</div>
-          </div>
-          <div class="daily-card">
-            <div class="daily-k">Streak</div>
-            <div id="streak-count" class="daily-v">0 days</div>
-          </div>
-          <div class="daily-card">
-            <div class="daily-k">Total runs</div>
-            <div id="total-runs" class="daily-v">0</div>
-          </div>
-        </div>
-        <div class="daily-goal-row">
-          <label for="daily-goal-input">Daily goal</label>
-          <input id="daily-goal-input" type="number" min="1" max="50" value="5" />
-          <span id="goal-progress">0 / 5</span>
-          <button id="mark-done-btn" class="btn-ghost" type="button">Mark done</button>
-        </div>
-      </div>
-
       <div class="controls">
         <div class="field">
           <label for="model-select">Model</label>
@@ -102,23 +79,6 @@
             <option value="balanced" selected>Balanced</option>
             <option value="detailed">Detailed</option>
           </select>
-        </div>
-        <div class="field">
-          <label for="autorun-template">Template behavior</label>
-          <label class="toggle-wrap">
-            <input id="autorun-template" type="checkbox" />
-            <span>Auto-run after applying template</span>
-          </label>
-        </div>
-      </div>
-
-      <div class="field">
-        <label>Task inspiration</label>
-        <div class="inspire-grid">
-          <button class="inspire-card" data-template="sales-followup" type="button">Follow up lead after demo</button>
-          <button class="inspire-card" data-template="support-apology" type="button">Calm angry customer message</button>
-          <button class="inspire-card" data-template="interview-followup" type="button">Send interview thank-you</button>
-          <button class="inspire-card" data-template="meeting-recap" type="button">Share meeting action recap</button>
         </div>
       </div>
 
@@ -169,13 +129,6 @@
         <pre id="output-box">Your result will appear here.</pre>
       </div>
 
-      <div class="history">
-        <div class="history-head">
-          <span>Recent outputs</span>
-          <button id="clear-history-btn" class="btn-ghost" type="button">Clear history</button>
-        </div>
-        <div id="history-list" class="history-list"></div>
-      </div>
     </section>
   </main>
 

@@ -11,13 +11,6 @@ const ui = {
   clearBtn: $("clear-btn"),
   copyBtn: $("copy-btn"),
   downloadBtn: $("download-btn"),
-  clearHistoryBtn: $("clear-history-btn"),
-  runsToday: $("runs-today"),
-  streakCount: $("streak-count"),
-  totalRuns: $("total-runs"),
-  dailyGoalInput: $("daily-goal-input"),
-  goalProgress: $("goal-progress"),
-  markDoneBtn: $("mark-done-btn"),
   llmDot: $("llm-dot"),
   llmLabel: $("llm-label"),
   statusText: $("status-text"),
@@ -25,15 +18,12 @@ const ui = {
   toolSelect: $("tool-select"),
   toneSelect: $("tone-select"),
   lengthSelect: $("length-select"),
-  autoRunTemplate: $("autorun-template"),
   templateSelect: $("template-select"),
   applyTemplateBtn: $("apply-template-btn"),
-  inspireCards: document.querySelectorAll(".inspire-card"),
   contextInput: $("context-input"),
   sourceInput: $("source-input"),
   outputBox: $("output-box"),
   charCount: $("char-count"),
-  historyList: $("history-list"),
 };
 
 const state = {
@@ -42,20 +32,9 @@ const state = {
   modelReady: false,
   busy: false,
   modelId: "onnx-community/Qwen2.5-0.5B-Instruct",
-  history: [],
   streamJob: 0,
-  usage: {
-    totalRuns: 0,
-    lastActiveDate: null,
-    dailyRuns: 0,
-    streak: 0,
-    completedDays: [],
-  },
 };
 
-const HISTORY_KEY = "qwendesk-history-v1";
-const HISTORY_LIMIT = 8;
-const USAGE_KEY = "qwendesk-usage-v1";
 const SETTINGS_KEY = "qwendesk-settings-v1";
 const DRAFT_KEY = "qwendesk-draft-v1";
 
@@ -99,17 +78,6 @@ function setStatus(text) {
   ui.statusText.textContent = text;
 }
 
-function getTodayKey() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function isYesterday(dateStr) {
-  if (!dateStr) return false;
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  return d.toISOString().slice(0, 10) === dateStr;
-}
-
 function setBusy(next) {
   state.busy = next;
   ui.runBtn.disabled = !state.modelReady || next;
@@ -146,41 +114,12 @@ async function streamTextToOutput(text) {
   }
 }
 
-function updateUsageUI() {
-  ui.runsToday.textContent = String(state.usage.dailyRuns || 0);
-  ui.streakCount.textContent = `${state.usage.streak || 0} days`;
-  ui.totalRuns.textContent = String(state.usage.totalRuns || 0);
-  const goal = Number.parseInt(ui.dailyGoalInput.value || "5", 10);
-  ui.goalProgress.textContent = `${state.usage.dailyRuns || 0} / ${goal}`;
-}
-
-function saveUsage() {
-  localStorage.setItem(USAGE_KEY, JSON.stringify(state.usage));
-}
-
-function loadUsage() {
-  try {
-    const raw = localStorage.getItem(USAGE_KEY);
-    if (raw) {
-      state.usage = { ...state.usage, ...JSON.parse(raw) };
-    }
-  } catch (_) {
-    // Ignore invalid stored data.
-  }
-  if (state.usage.lastActiveDate !== getTodayKey()) {
-    state.usage.dailyRuns = 0;
-  }
-  updateUsageUI();
-}
-
 function saveSettings() {
   const payload = {
     modelId: ui.modelSelect.value,
     tool: ui.toolSelect.value,
     tone: ui.toneSelect.value,
     length: ui.lengthSelect.value,
-    autoRunTemplate: ui.autoRunTemplate.checked,
-    dailyGoal: ui.dailyGoalInput.value || "5",
   };
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(payload));
 }
@@ -194,8 +133,6 @@ function loadSettings() {
     if (settings.tool) ui.toolSelect.value = settings.tool;
     if (settings.tone) ui.toneSelect.value = settings.tone;
     if (settings.length) ui.lengthSelect.value = settings.length;
-    if (typeof settings.autoRunTemplate === "boolean") ui.autoRunTemplate.checked = settings.autoRunTemplate;
-    if (settings.dailyGoal) ui.dailyGoalInput.value = settings.dailyGoal;
   } catch (_) {
     // Ignore invalid settings.
   }
@@ -222,21 +159,6 @@ function loadDraft() {
   } catch (_) {
     // Ignore invalid draft.
   }
-}
-
-function recordRun() {
-  const today = getTodayKey();
-  const previous = state.usage.lastActiveDate;
-  if (previous !== today) {
-    if (isYesterday(previous)) state.usage.streak += 1;
-    else state.usage.streak = 1;
-    state.usage.dailyRuns = 0;
-    state.usage.lastActiveDate = today;
-  }
-  state.usage.dailyRuns += 1;
-  state.usage.totalRuns += 1;
-  saveUsage();
-  updateUsageUI();
 }
 
 function buildSystemPrompt(tool, tone, context, length) {
@@ -387,16 +309,6 @@ async function runTool() {
 
     setStatus("Streaming output...");
     await streamTextToOutput(generated || "No output generated.");
-    recordRun();
-    saveHistoryItem({
-      tool,
-      tone,
-      length,
-      context,
-      source,
-      output: generated || "No output generated.",
-      ts: Date.now(),
-    });
     setModelState("ready", "Model ready");
     setStatus("Done");
   } catch (error) {
@@ -438,9 +350,6 @@ function applyTemplate() {
   ui.sourceInput.value = preset.source;
   saveDraft();
   setStatus("Template applied");
-  if (ui.autoRunTemplate.checked && state.modelReady && !state.busy) {
-    runTool().catch(() => undefined);
-  }
 }
 
 function downloadOutput() {
@@ -458,69 +367,6 @@ function downloadOutput() {
   setStatus("Output downloaded");
 }
 
-function renderHistory() {
-  ui.historyList.innerHTML = "";
-  if (state.history.length === 0) {
-    ui.historyList.innerHTML = `<div class="history-item"><div class="history-text">No history yet.</div></div>`;
-    return;
-  }
-  for (const item of state.history) {
-    const el = document.createElement("button");
-    el.type = "button";
-    el.className = "history-item";
-    const date = new Date(item.ts);
-    el.innerHTML = `<div class="history-meta">${item.tool} · ${item.tone} · ${item.length} · ${date.toLocaleString()}</div>
-      <div class="history-text">${esc(item.output)}</div>`;
-    el.addEventListener("click", () => restoreHistoryItem(item));
-    ui.historyList.appendChild(el);
-  }
-}
-
-function saveHistoryItem(item) {
-  state.history.unshift(item);
-  state.history = state.history.slice(0, HISTORY_LIMIT);
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(state.history));
-  renderHistory();
-}
-
-function loadHistory() {
-  try {
-    const raw = localStorage.getItem(HISTORY_KEY);
-    state.history = raw ? JSON.parse(raw) : [];
-  } catch (_) {
-    state.history = [];
-  }
-  renderHistory();
-}
-
-function restoreHistoryItem(item) {
-  state.streamJob += 1;
-  ui.toolSelect.value = item.tool;
-  ui.toneSelect.value = item.tone;
-  ui.lengthSelect.value = item.length || "balanced";
-  ui.contextInput.value = item.context || "";
-  ui.sourceInput.value = item.source || "";
-  ui.outputBox.textContent = item.output || "";
-  updateCount();
-  setStatus("History item restored");
-}
-
-function clearHistory() {
-  state.history = [];
-  localStorage.removeItem(HISTORY_KEY);
-  renderHistory();
-  setStatus("History cleared");
-}
-
-function markTodayDone() {
-  const today = getTodayKey();
-  const set = new Set(state.usage.completedDays || []);
-  set.add(today);
-  state.usage.completedDays = Array.from(set).slice(-90);
-  saveUsage();
-  setStatus("Great work. Today marked complete.");
-}
-
 ui.loadModelBtn.addEventListener("click", () => {
   loadModel().catch(() => undefined);
 });
@@ -533,24 +379,13 @@ ui.clearBtn.addEventListener("click", clearAll);
 ui.copyBtn.addEventListener("click", copyOutput);
 ui.downloadBtn.addEventListener("click", downloadOutput);
 ui.applyTemplateBtn.addEventListener("click", applyTemplate);
-ui.clearHistoryBtn.addEventListener("click", clearHistory);
-ui.markDoneBtn.addEventListener("click", markTodayDone);
-ui.inspireCards.forEach((btn) => {
-  btn.addEventListener("click", () => {
-    ui.templateSelect.value = btn.dataset.template;
-    applyTemplate();
-  });
-});
 [
   ui.toolSelect,
   ui.toneSelect,
   ui.lengthSelect,
-  ui.autoRunTemplate,
-  ui.dailyGoalInput,
 ].forEach((el) => {
   el.addEventListener("change", () => {
     saveSettings();
-    updateUsageUI();
   });
 });
 ui.contextInput.addEventListener("input", saveDraft);
@@ -586,7 +421,5 @@ setModelState("idle", "Model idle");
 setStatus("Load the model to start");
 setBusy(false);
 loadSettings();
-loadUsage();
 loadDraft();
-loadHistory();
 updateCount();
