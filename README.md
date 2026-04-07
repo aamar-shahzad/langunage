@@ -21,6 +21,12 @@ That keeps startup simpler while still solving common user pain.
   - Customer support apology
   - Interview follow-up email
   - Meeting recap with actions
+- `Output controls`: short/balanced/detailed, copy, and download as `.md`
+- `Productivity UX`: keyboard shortcut (`Ctrl/Cmd + Enter`) and optional auto-run on template apply
+- `Recent outputs`: local history (stored in browser) with one-click restore
+- `Daily workflow`: runs today, streak, total runs, and daily goal tracker
+- `Workspace memory`: auto-saves settings and draft input in browser local storage
+- `Streaming output view`: results render progressively for better readability
 
 ## Tech
 

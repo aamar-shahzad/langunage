@@ -88,6 +88,20 @@ body {
   max-width: 680px;
   line-height: 1.65;
 }
+.hint-line {
+  margin-top: 0.65rem;
+  color: var(--muted);
+  font-size: 12px;
+}
+kbd {
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  padding: 0.1rem 0.35rem;
+  font-family: var(--mono);
+  font-size: 11px;
+  background: var(--panel2);
+}
 
 .panel {
   margin-top: 1.2rem;
@@ -95,6 +109,56 @@ body {
   border: 1px solid var(--line);
   border-radius: 14px;
   padding: 1rem;
+}
+.daily-wrap {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.7rem;
+  margin-bottom: 0.8rem;
+  background: rgba(255, 255, 255, 0.02);
+}
+.daily-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+.daily-card {
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 0.5rem 0.6rem;
+  background: var(--panel2);
+}
+.daily-k {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+.daily-v {
+  margin-top: 0.2rem;
+  font-weight: 700;
+  font-size: 15px;
+}
+.daily-goal-row {
+  margin-top: 0.65rem;
+  display: grid;
+  grid-template-columns: auto 90px 1fr auto;
+  gap: 0.55rem;
+  align-items: center;
+}
+.daily-goal-row label {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.daily-goal-row input {
+  padding: 0.45rem 0.55rem;
+}
+#goal-progress {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 12px;
 }
 
 .status-row {
@@ -155,6 +219,34 @@ body {
   grid-template-columns: 1fr auto;
   gap: 0.55rem;
   align-items: center;
+}
+.toggle-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 13px;
+  color: var(--text);
+}
+.toggle-wrap input {
+  width: auto;
+}
+.inspire-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+.inspire-card {
+  border: 1px solid var(--line);
+  background: var(--panel2);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 0.62rem 0.7rem;
+  text-align: left;
+  cursor: pointer;
+  font-weight: 500;
+}
+.inspire-card:hover {
+  border-color: var(--accent);
 }
 
 .field {
@@ -252,9 +344,69 @@ textarea:focus {
   line-height: 1.65;
   font-family: var(--sans);
 }
+.history {
+  margin-top: 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.history-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.45rem 0.7rem;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+  font-family: var(--mono);
+}
+.history-head .btn-ghost {
+  padding: 0.3rem 0.55rem;
+  font-size: 11px;
+}
+.history-list {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.65rem;
+}
+.history-item {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel2);
+  padding: 0.52rem 0.6rem;
+  cursor: pointer;
+}
+.history-item:hover {
+  border-color: var(--accent);
+}
+.history-meta {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 0.2rem;
+}
+.history-text {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text);
+  display: -webkit-box;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 
 @media (max-width: 700px) {
+  .daily-stats {
+    grid-template-columns: 1fr;
+  }
+  .daily-goal-row {
+    grid-template-columns: 1fr;
+  }
   .controls {
+    grid-template-columns: 1fr;
+  }
+  .inspire-grid {
     grid-template-columns: 1fr;
   }
   .template-row {

@@ -10,17 +10,29 @@ const ui = {
   runBtn: $("run-btn"),
   clearBtn: $("clear-btn"),
   copyBtn: $("copy-btn"),
+  downloadBtn: $("download-btn"),
+  clearHistoryBtn: $("clear-history-btn"),
+  runsToday: $("runs-today"),
+  streakCount: $("streak-count"),
+  totalRuns: $("total-runs"),
+  dailyGoalInput: $("daily-goal-input"),
+  goalProgress: $("goal-progress"),
+  markDoneBtn: $("mark-done-btn"),
   llmDot: $("llm-dot"),
   llmLabel: $("llm-label"),
   statusText: $("status-text"),
   toolSelect: $("tool-select"),
   toneSelect: $("tone-select"),
+  lengthSelect: $("length-select"),
+  autoRunTemplate: $("autorun-template"),
   templateSelect: $("template-select"),
   applyTemplateBtn: $("apply-template-btn"),
+  inspireCards: document.querySelectorAll(".inspire-card"),
   contextInput: $("context-input"),
   sourceInput: $("source-input"),
   outputBox: $("output-box"),
   charCount: $("char-count"),
+  historyList: $("history-list"),
 };
 
 const state = {
@@ -28,7 +40,22 @@ const state = {
   modelsLoading: false,
   modelReady: false,
   busy: false,
+  history: [],
+  streamJob: 0,
+  usage: {
+    totalRuns: 0,
+    lastActiveDate: null,
+    dailyRuns: 0,
+    streak: 0,
+    completedDays: [],
+  },
 };
+
+const HISTORY_KEY = "qwendesk-history-v1";
+const HISTORY_LIMIT = 8;
+const USAGE_KEY = "qwendesk-usage-v1";
+const SETTINGS_KEY = "qwendesk-settings-v1";
+const DRAFT_KEY = "qwendesk-draft-v1";
 
 const templates = {
   "sales-followup": {
@@ -70,6 +97,17 @@ function setStatus(text) {
   ui.statusText.textContent = text;
 }
 
+function getTodayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function isYesterday(dateStr) {
+  if (!dateStr) return false;
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().slice(0, 10) === dateStr;
+}
+
 function setBusy(next) {
   state.busy = next;
   ui.runBtn.disabled = !state.modelReady || next;
@@ -84,8 +122,126 @@ function updateCount() {
   ui.charCount.textContent = `${(ui.outputBox.textContent || "").length} chars`;
 }
 
-function buildSystemPrompt(tool, tone, context) {
-  const base = `You are a practical writing assistant. Tone: ${tone}.`;
+async function streamTextToOutput(text) {
+  const content = text || "";
+  const myJob = ++state.streamJob;
+  ui.outputBox.textContent = "";
+  updateCount();
+
+  // Fast path for short outputs.
+  if (content.length < 140) {
+    ui.outputBox.textContent = content;
+    updateCount();
+    return;
+  }
+
+  const chunkSize = 8;
+  for (let i = 0; i < content.length; i += chunkSize) {
+    if (myJob !== state.streamJob) return;
+    ui.outputBox.textContent = content.slice(0, i + chunkSize);
+    updateCount();
+    await new Promise((resolve) => setTimeout(resolve, 14));
+  }
+}
+
+function updateUsageUI() {
+  ui.runsToday.textContent = String(state.usage.dailyRuns || 0);
+  ui.streakCount.textContent = `${state.usage.streak || 0} days`;
+  ui.totalRuns.textContent = String(state.usage.totalRuns || 0);
+  const goal = Number.parseInt(ui.dailyGoalInput.value || "5", 10);
+  ui.goalProgress.textContent = `${state.usage.dailyRuns || 0} / ${goal}`;
+}
+
+function saveUsage() {
+  localStorage.setItem(USAGE_KEY, JSON.stringify(state.usage));
+}
+
+function loadUsage() {
+  try {
+    const raw = localStorage.getItem(USAGE_KEY);
+    if (raw) {
+      state.usage = { ...state.usage, ...JSON.parse(raw) };
+    }
+  } catch (_) {
+    // Ignore invalid stored data.
+  }
+  if (state.usage.lastActiveDate !== getTodayKey()) {
+    state.usage.dailyRuns = 0;
+  }
+  updateUsageUI();
+}
+
+function saveSettings() {
+  const payload = {
+    tool: ui.toolSelect.value,
+    tone: ui.toneSelect.value,
+    length: ui.lengthSelect.value,
+    autoRunTemplate: ui.autoRunTemplate.checked,
+    dailyGoal: ui.dailyGoalInput.value || "5",
+  };
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(payload));
+}
+
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (!raw) return;
+    const settings = JSON.parse(raw);
+    if (settings.tool) ui.toolSelect.value = settings.tool;
+    if (settings.tone) ui.toneSelect.value = settings.tone;
+    if (settings.length) ui.lengthSelect.value = settings.length;
+    if (typeof settings.autoRunTemplate === "boolean") ui.autoRunTemplate.checked = settings.autoRunTemplate;
+    if (settings.dailyGoal) ui.dailyGoalInput.value = settings.dailyGoal;
+  } catch (_) {
+    // Ignore invalid settings.
+  }
+}
+
+function saveDraft() {
+  const payload = {
+    context: ui.contextInput.value,
+    source: ui.sourceInput.value,
+  };
+  localStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
+}
+
+function loadDraft() {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return;
+    const draft = JSON.parse(raw);
+    if (draft.context) ui.contextInput.value = draft.context;
+    if (draft.source) ui.sourceInput.value = draft.source;
+    if (draft.context || draft.source) {
+      setStatus("Draft restored");
+    }
+  } catch (_) {
+    // Ignore invalid draft.
+  }
+}
+
+function recordRun() {
+  const today = getTodayKey();
+  const previous = state.usage.lastActiveDate;
+  if (previous !== today) {
+    if (isYesterday(previous)) state.usage.streak += 1;
+    else state.usage.streak = 1;
+    state.usage.dailyRuns = 0;
+    state.usage.lastActiveDate = today;
+  }
+  state.usage.dailyRuns += 1;
+  state.usage.totalRuns += 1;
+  saveUsage();
+  updateUsageUI();
+}
+
+function buildSystemPrompt(tool, tone, context, length) {
+  const lengthRule = {
+    short: "Keep output compact and direct.",
+    balanced: "Keep output concise but complete.",
+    detailed: "Provide richer detail while staying practical.",
+  };
+  const base = `You are a practical writing assistant. Tone: ${tone}. ${lengthRule[length] || lengthRule.balanced}`;
   if (tool === "rewrite") {
     return `${base}
 Rewrite the user text to be clearer and cleaner while preserving intent.
@@ -183,8 +339,9 @@ async function runTool() {
 
   const tool = ui.toolSelect.value;
   const tone = ui.toneSelect.value;
+  const length = ui.lengthSelect.value;
   const context = ui.contextInput.value.trim();
-  const systemPrompt = buildSystemPrompt(tool, tone, context);
+  const systemPrompt = buildSystemPrompt(tool, tone, context, length);
   const prompt = buildPrompt(systemPrompt, source);
 
   setBusy(true);
@@ -202,8 +359,18 @@ async function runTool() {
 
     const generated = extractAssistantText(result?.[0]?.generated_text || "", prompt);
 
-    ui.outputBox.innerHTML = esc(generated || "No output generated.");
-    updateCount();
+    setStatus("Streaming output...");
+    await streamTextToOutput(generated || "No output generated.");
+    recordRun();
+    saveHistoryItem({
+      tool,
+      tone,
+      length,
+      context,
+      source,
+      output: generated || "No output generated.",
+      ts: Date.now(),
+    });
     setModelState("ready", "Model ready");
     setStatus("Done");
   } catch (error) {
@@ -217,9 +384,11 @@ async function runTool() {
 }
 
 function clearAll() {
+  state.streamJob += 1;
   ui.sourceInput.value = "";
   ui.contextInput.value = "";
   ui.outputBox.textContent = "Your result will appear here.";
+  saveDraft();
   updateCount();
   setStatus(state.modelReady ? "Ready" : "Load the model to start");
 }
@@ -241,7 +410,89 @@ function applyTemplate() {
   ui.toneSelect.value = preset.tone;
   ui.contextInput.value = preset.context;
   ui.sourceInput.value = preset.source;
+  saveDraft();
   setStatus("Template applied");
+  if (ui.autoRunTemplate.checked && state.modelReady && !state.busy) {
+    runTool().catch(() => undefined);
+  }
+}
+
+function downloadOutput() {
+  const content = ui.outputBox.textContent || "";
+  const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  a.href = url;
+  a.download = `qwendesk-output-${stamp}.md`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  setStatus("Output downloaded");
+}
+
+function renderHistory() {
+  ui.historyList.innerHTML = "";
+  if (state.history.length === 0) {
+    ui.historyList.innerHTML = `<div class="history-item"><div class="history-text">No history yet.</div></div>`;
+    return;
+  }
+  for (const item of state.history) {
+    const el = document.createElement("button");
+    el.type = "button";
+    el.className = "history-item";
+    const date = new Date(item.ts);
+    el.innerHTML = `<div class="history-meta">${item.tool} · ${item.tone} · ${item.length} · ${date.toLocaleString()}</div>
+      <div class="history-text">${esc(item.output)}</div>`;
+    el.addEventListener("click", () => restoreHistoryItem(item));
+    ui.historyList.appendChild(el);
+  }
+}
+
+function saveHistoryItem(item) {
+  state.history.unshift(item);
+  state.history = state.history.slice(0, HISTORY_LIMIT);
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(state.history));
+  renderHistory();
+}
+
+function loadHistory() {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY);
+    state.history = raw ? JSON.parse(raw) : [];
+  } catch (_) {
+    state.history = [];
+  }
+  renderHistory();
+}
+
+function restoreHistoryItem(item) {
+  state.streamJob += 1;
+  ui.toolSelect.value = item.tool;
+  ui.toneSelect.value = item.tone;
+  ui.lengthSelect.value = item.length || "balanced";
+  ui.contextInput.value = item.context || "";
+  ui.sourceInput.value = item.source || "";
+  ui.outputBox.textContent = item.output || "";
+  updateCount();
+  setStatus("History item restored");
+}
+
+function clearHistory() {
+  state.history = [];
+  localStorage.removeItem(HISTORY_KEY);
+  renderHistory();
+  setStatus("History cleared");
+}
+
+function markTodayDone() {
+  const today = getTodayKey();
+  const set = new Set(state.usage.completedDays || []);
+  set.add(today);
+  state.usage.completedDays = Array.from(set).slice(-90);
+  saveUsage();
+  setStatus("Great work. Today marked complete.");
 }
 
 ui.loadModelBtn.addEventListener("click", () => {
@@ -254,7 +505,37 @@ ui.runBtn.addEventListener("click", () => {
 
 ui.clearBtn.addEventListener("click", clearAll);
 ui.copyBtn.addEventListener("click", copyOutput);
+ui.downloadBtn.addEventListener("click", downloadOutput);
 ui.applyTemplateBtn.addEventListener("click", applyTemplate);
+ui.clearHistoryBtn.addEventListener("click", clearHistory);
+ui.markDoneBtn.addEventListener("click", markTodayDone);
+ui.inspireCards.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    ui.templateSelect.value = btn.dataset.template;
+    applyTemplate();
+  });
+});
+[
+  ui.toolSelect,
+  ui.toneSelect,
+  ui.lengthSelect,
+  ui.autoRunTemplate,
+  ui.dailyGoalInput,
+].forEach((el) => {
+  el.addEventListener("change", () => {
+    saveSettings();
+    updateUsageUI();
+  });
+});
+ui.contextInput.addEventListener("input", saveDraft);
+ui.sourceInput.addEventListener("input", saveDraft);
+
+ui.sourceInput.addEventListener("keydown", (event) => {
+  if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+    event.preventDefault();
+    runTool().catch(() => undefined);
+  }
+});
 
 window.addEventListener("beforeunload", () => {
   if (state.llmPipe) {
@@ -265,4 +546,8 @@ window.addEventListener("beforeunload", () => {
 setModelState("idle", "Model idle");
 setStatus("Load the model to start");
 setBusy(false);
+loadSettings();
+loadUsage();
+loadDraft();
+loadHistory();
 updateCount();
