@@ -21,6 +21,7 @@ const ui = {
   llmDot: $("llm-dot"),
   llmLabel: $("llm-label"),
   statusText: $("status-text"),
+  modelSelect: $("model-select"),
   toolSelect: $("tool-select"),
   toneSelect: $("tone-select"),
   lengthSelect: $("length-select"),
@@ -40,6 +41,7 @@ const state = {
   modelsLoading: false,
   modelReady: false,
   busy: false,
+  modelId: "onnx-community/Qwen2.5-0.5B-Instruct",
   history: [],
   streamJob: 0,
   usage: {
@@ -173,6 +175,7 @@ function loadUsage() {
 
 function saveSettings() {
   const payload = {
+    modelId: ui.modelSelect.value,
     tool: ui.toolSelect.value,
     tone: ui.toneSelect.value,
     length: ui.lengthSelect.value,
@@ -187,6 +190,7 @@ function loadSettings() {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (!raw) return;
     const settings = JSON.parse(raw);
+    if (settings.modelId) ui.modelSelect.value = settings.modelId;
     if (settings.tool) ui.toolSelect.value = settings.tool;
     if (settings.tone) ui.toneSelect.value = settings.tone;
     if (settings.length) ui.lengthSelect.value = settings.length;
@@ -258,11 +262,15 @@ Keep it concise.
 ${context ? `Context: ${context}` : ""}`;
   }
   return `${base}
-Generate 3 reply options in markdown:
+Generate exactly 3 business-ready reply options in markdown:
 1) Short
 2) Balanced
 3) Detailed
-Keep each option ready to send.
+Rules:
+- Preserve user's intent and key facts.
+- Do not invent names or events not present in the input/context.
+- Keep each option realistic and ready to send.
+- Avoid generic filler lines.
 ${context ? `Context: ${context}` : ""}`;
 }
 
@@ -282,9 +290,9 @@ function extractAssistantText(generatedText, prompt) {
     text = text.slice(prompt.length);
   }
 
-  // Handle cases where model echoes role blocks without special tokens.
-  if (/(\n|^)assistant\s*\n/i.test(text)) {
-    const parts = text.split(/(?:\n|^)assistant\s*\n/i);
+  // Handle role echoes with or without colon.
+  if (/(\n|^)assistant\s*:?\s*\n/i.test(text)) {
+    const parts = text.split(/(?:\n|^)assistant\s*:?\s*\n/i);
     text = parts[parts.length - 1] || "";
   }
 
@@ -294,9 +302,15 @@ function extractAssistantText(generatedText, prompt) {
     .replace(/<\|im_start\|>user[\s\S]*?<\|im_end\|>/gi, "")
     .replace(/<\|im_start\|>assistant/gi, "")
     .replace(/<\|im_end\|>/gi, "")
-    .replace(/(?:^|\n)system\s*\n[\s\S]*?(?=(?:\nuser\s*\n|\nassistant\s*\n|$))/gi, "")
-    .replace(/(?:^|\n)user\s*\n[\s\S]*?(?=(?:\nassistant\s*\n|$))/gi, "")
+    .replace(/(?:^|\n)system\s*:?\s*\n[\s\S]*?(?=(?:\nuser\s*:?\s*\n|\nassistant\s*:?\s*\n|$))/gi, "")
+    .replace(/(?:^|\n)user\s*:?\s*\n[\s\S]*?(?=(?:\nassistant\s*:?\s*\n|$))/gi, "")
+    .replace(/^You are a practical writing assistant\.[\s\S]*?(?=\n(?:assistant\s*:?\s*\n|1\)\s*Short|$))/i, "")
     .trim();
+
+  const tailMatch = text.match(/assistant\s*:?\s*\n([\s\S]*)$/i);
+  if (tailMatch && tailMatch[1]) {
+    text = tailMatch[1].trim();
+  }
 
   return text;
 }
@@ -305,11 +319,13 @@ async function loadModel() {
   if (state.modelReady || state.modelsLoading) return;
   state.modelsLoading = true;
   setBusy(true);
+  state.modelId = ui.modelSelect.value || state.modelId;
+  const selectedLabel = ui.modelSelect.options[ui.modelSelect.selectedIndex]?.text || "Selected model";
   setModelState("loading", "Model loading");
-  setStatus("Loading Qwen2.5-0.5B-Instruct...");
+  setStatus(`Loading ${selectedLabel}...`);
 
   try {
-    state.llmPipe = await pipeline("text-generation", "onnx-community/Qwen2.5-0.5B-Instruct", {
+    state.llmPipe = await pipeline("text-generation", state.modelId, {
       progress_callback: (p) => {
         if (p.status === "progress" && p.progress) {
           setStatus(`Loading model: ${Math.round(p.progress)}%`);
@@ -343,19 +359,29 @@ async function runTool() {
   const context = ui.contextInput.value.trim();
   const systemPrompt = buildSystemPrompt(tool, tone, context, length);
   const prompt = buildPrompt(systemPrompt, source);
+  const lengthTokenBudget = { short: 120, balanced: 220, detailed: 360 };
 
   setBusy(true);
   setModelState("loading", "Generating");
   setStatus("Generating result...");
 
   try {
-    const result = await state.llmPipe(prompt, {
-      max_new_tokens: 320,
-      temperature: 0.55,
-      do_sample: true,
-      repetition_penalty: 1.08,
-      eos_token_id: 151645,
-    });
+    const generationOptions =
+      tool === "reply"
+        ? {
+            max_new_tokens: lengthTokenBudget[length] || 220,
+            do_sample: false,
+            repetition_penalty: 1.06,
+            eos_token_id: 151645,
+          }
+        : {
+            max_new_tokens: lengthTokenBudget[length] || 220,
+            temperature: 0.5,
+            do_sample: true,
+            repetition_penalty: 1.08,
+            eos_token_id: 151645,
+          };
+    const result = await state.llmPipe(prompt, generationOptions);
 
     const generated = extractAssistantText(result?.[0]?.generated_text || "", prompt);
 
@@ -534,6 +560,19 @@ ui.sourceInput.addEventListener("keydown", (event) => {
   if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
     event.preventDefault();
     runTool().catch(() => undefined);
+  }
+});
+ui.modelSelect.addEventListener("change", () => {
+  saveSettings();
+  if (state.modelReady && !state.busy) {
+    state.modelReady = false;
+    if (state.llmPipe) {
+      state.llmPipe.dispose().catch(() => undefined);
+      state.llmPipe = null;
+    }
+    setModelState("idle", "Model idle");
+    setStatus("Model changed. Load model again.");
+    setBusy(false);
   }
 });
 

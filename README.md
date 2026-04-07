@@ -27,6 +27,7 @@ That keeps startup simpler while still solving common user pain.
 - `Daily workflow`: runs today, streak, total runs, and daily goal tracker
 - `Workspace memory`: auto-saves settings and draft input in browser local storage
 - `Streaming output view`: results render progressively for better readability
+- `Model switcher`: choose quality vs speed with Qwen 0.5B, SmolLM2 135M, or Falcon H1 Tiny 90M
 
 ## Tech
 

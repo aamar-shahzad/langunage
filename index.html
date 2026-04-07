@@ -71,6 +71,14 @@
 
       <div class="controls">
         <div class="field">
+          <label for="model-select">Model</label>
+          <select id="model-select">
+            <option value="onnx-community/Qwen2.5-0.5B-Instruct" selected>Qwen2.5 0.5B (best quality)</option>
+            <option value="onnx-community/SmolLM2-135M-Instruct-ONNX-MHA">SmolLM2 135M (very light)</option>
+            <option value="onnx-community/Falcon-H1-Tiny-90M-Instruct-ONNX">Falcon H1 Tiny 90M (ultra light)</option>
+          </select>
+        </div>
+        <div class="field">
           <label for="tool-select">Tool</label>
           <select id="tool-select">
             <option value="rewrite">Rewrite</option>
