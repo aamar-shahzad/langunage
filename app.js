@@ -119,6 +119,32 @@ ${userText}<|im_end|>
 `;
 }
 
+function extractAssistantText(generatedText, prompt) {
+  let text = generatedText || "";
+
+  if (prompt && text.startsWith(prompt)) {
+    text = text.slice(prompt.length);
+  }
+
+  // Handle cases where model echoes role blocks without special tokens.
+  if (/(\n|^)assistant\s*\n/i.test(text)) {
+    const parts = text.split(/(?:\n|^)assistant\s*\n/i);
+    text = parts[parts.length - 1] || "";
+  }
+
+  // Remove any remaining chat template tokens or role echoes.
+  text = text
+    .replace(/<\|im_start\|>system[\s\S]*?<\|im_end\|>/gi, "")
+    .replace(/<\|im_start\|>user[\s\S]*?<\|im_end\|>/gi, "")
+    .replace(/<\|im_start\|>assistant/gi, "")
+    .replace(/<\|im_end\|>/gi, "")
+    .replace(/(?:^|\n)system\s*\n[\s\S]*?(?=(?:\nuser\s*\n|\nassistant\s*\n|$))/gi, "")
+    .replace(/(?:^|\n)user\s*\n[\s\S]*?(?=(?:\nassistant\s*\n|$))/gi, "")
+    .trim();
+
+  return text;
+}
+
 async function loadModel() {
   if (state.modelReady || state.modelsLoading) return;
   state.modelsLoading = true;
@@ -174,10 +200,7 @@ async function runTool() {
       eos_token_id: 151645,
     });
 
-    const generated = (result?.[0]?.generated_text || "")
-      .replace(prompt, "")
-      .replace(/<\|im_end\|>.*/s, "")
-      .trim();
+    const generated = extractAssistantText(result?.[0]?.generated_text || "", prompt);
 
     ui.outputBox.innerHTML = esc(generated || "No output generated.");
     updateCount();
