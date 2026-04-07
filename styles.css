@@ -217,6 +217,36 @@ select option{background:#1c1f2b}
   color:var(--dust);cursor:pointer;transition:all 0.2s;border:none;background:transparent;
 }
 .mode-tab.active{background:var(--a);color:#000}
+.mode-tab:disabled{opacity:0.45;cursor:not-allowed}
+.model-tools{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.context-box{
+  background:var(--ink2);
+  border:0.5px solid var(--line2);
+  border-radius:var(--r);
+  padding:0.9rem 1rem;
+  margin-bottom:1rem;
+}
+.context-title{
+  font-size:10px;
+  font-family:var(--mono);
+  color:var(--dust2);
+  text-transform:uppercase;
+  letter-spacing:0.1em;
+  margin-bottom:8px;
+}
+.context-box textarea{
+  width:100%;
+  background:transparent;
+  border:none;
+  outline:none;
+  color:var(--snow);
+  font-family:var(--sans);
+  font-size:13px;
+  line-height:1.6;
+  resize:vertical;
+  min-height:42px;
+}
+.context-box textarea::placeholder{color:var(--dust2)}
 
 .mic-section{
   display:flex;flex-direction:column;align-items:center;

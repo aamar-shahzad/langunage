@@ -9,6 +9,10 @@ Browser-based language practice app using local AI models for speech-to-text, re
 - Uses Qwen2.5-0.5B-Instruct for chat and corrections
 - Uses SpeechT5 when available, with browser voice fallback
 - Shows language scores (fluency, grammar, vocabulary) and tips
+- Supports multiple use cases in one UI:
+  - Language Coach
+  - Interview Coach
+  - Meeting Notes Assistant
 
 ## Project Structure
 
@@ -23,6 +27,30 @@ Browser-based language practice app using local AI models for speech-to-text, re
 - Cleanup hooks for media streams, animation frames, audio contexts, and observers
 - Model disposal on page unload (`pipeline.dispose()`)
 - Lightweight replay chips that avoid retaining per-message raw audio buffers
+
+## Model Loading Strategy
+
+The app now supports profile-based loading so you do not need every model upfront:
+
+- `Text only` - loads only the LLM
+- `Voice input + browser voice` - loads LLM + STT
+- `Full voice` - loads LLM + STT + SpeechT5 TTS
+
+You can also load STT/TTS later with the optional model buttons after startup.
+
+## Use Cases
+
+Choose from the **Use case** selector in the app:
+
+- `Language Coach`
+  - Practice conversation, correction, or immersion mode
+  - Receives coaching plus score/tip output
+- `Interview Coach`
+  - Simulates interviewer-style Q&A
+  - Add role details in the context box (stack, level, round type)
+- `Meeting Notes Assistant`
+  - Turns spoken/typed input into structured notes
+  - Produces summary, decisions, action items, and blockers
 
 ## Run Locally
 

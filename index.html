@@ -119,8 +119,8 @@
     <div class="reveal">
       <div style="font-size:11px;font-family:var(--mono);color:var(--a);text-transform:uppercase;letter-spacing:0.15em;margin-bottom:8px">Practice Lab</div>
       <h2 style="font-size:32px;font-weight:800;letter-spacing:-0.03em;color:var(--white);margin-bottom:6px">Start a conversation</h2>
-      <p style="font-size:14px;color:var(--dust);margin-bottom:1.5rem">Load models below, choose your language and practice mode, then hit the mic.</p>
-      <button class="btn-main" id="load-models-btn" style="margin-bottom:1.5rem">⚡ Load AI Models</button>
+      <p style="font-size:14px;color:var(--dust);margin-bottom:1.5rem">Load the core model first, then optionally add voice models based on the features you need.</p>
+      <button class="btn-main" id="load-models-btn" style="margin-bottom:1.5rem">⚡ Load Core Model</button>
     </div>
   </div>
 
@@ -186,6 +186,34 @@
           <button class="mode-tab" data-mode="immersion">🔥 Immersion</button>
         </div>
       </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">Use case</span>
+        <select class="ctrl-select" id="use-case">
+          <option value="language-coach" selected>Language Coach</option>
+          <option value="interview-coach">Interview Coach</option>
+          <option value="meeting-notes">Meeting Notes Assistant</option>
+        </select>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">Model profile</span>
+        <select class="ctrl-select" id="model-profile">
+          <option value="text-only">Text only (fastest startup)</option>
+          <option value="voice-input" selected>Voice input + browser voice</option>
+          <option value="full-voice">Full voice (includes neural TTS)</option>
+        </select>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">Optional models</span>
+        <div class="model-tools">
+          <button class="pill-btn" id="load-stt-btn" type="button" style="display:none">Load STT</button>
+          <button class="pill-btn" id="load-tts-btn" type="button" style="display:none">Load TTS</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="context-box" id="context-box">
+      <div class="context-title" id="context-title">Session context</div>
+      <textarea id="use-case-context" rows="2" placeholder="Optional: add goal, scenario, or context for better responses"></textarea>
     </div>
 
     <div id="voice-section">

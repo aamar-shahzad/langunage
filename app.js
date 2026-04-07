@@ -38,6 +38,13 @@ const ui = {
   nativeLang: $('native-lang'),
   targetLang: $('target-lang'),
   level: $('level'),
+  useCase: $('use-case'),
+  contextBox: $('context-box'),
+  contextTitle: $('context-title'),
+  useCaseContext: $('use-case-context'),
+  modelProfile: $('model-profile'),
+  loadSttBtn: $('load-stt-btn'),
+  loadTtsBtn: $('load-tts-btn'),
   replayBtn: $('replay-btn'),
   welcomeBubble: $('welcome-bubble'),
 };
@@ -49,6 +56,8 @@ const state = {
   ttsAvailable: false,
   modelsLoaded: false,
   modelsLoading: false,
+  modelProfile: 'voice-input',
+  useCase: 'language-coach',
   isBusy: false,
   isRecording: false,
   conversationHistory: [],
@@ -107,7 +116,8 @@ function setBusy(nextBusy) {
   state.isBusy = nextBusy;
   const disabled = !state.modelsLoaded || nextBusy;
   ui.textSendBtn.disabled = disabled;
-  ui.micBtn.disabled = disabled || state.isRecording;
+  ui.micBtn.disabled = disabled || state.isRecording || !state.sttPipe;
+  updateOptionalModelControls();
 }
 
 function resetMicHint() {
@@ -119,12 +129,57 @@ function resetMicHint() {
 function updateWelcome() {
   const lang = ui.targetLang.value;
   const level = ui.level.value;
+  const voiceDesc = state.sttPipe ? 'Voice input enabled.' : 'Voice input model not loaded yet.';
+  const caseDesc = {
+    'language-coach': `We will practice ${lang} actively.`,
+    'interview-coach': 'We will run a realistic interview simulation.',
+    'meeting-notes': 'I will turn your input into clean meeting notes and action items.',
+  };
   const modeDesc = {
     conversation: 'have a natural conversation',
     correction: 'correct your grammar and suggest better phrasing',
     immersion: 'respond only in the target language (no translations)',
   };
-  ui.welcomeBubble.textContent = `Bonjour! I'm your ${lang} coach. We'll ${modeDesc[state.practiceMode]}. You're at ${level} level. Go ahead — speak or type something in ${lang}.`;
+  ui.welcomeBubble.textContent = `Welcome. ${caseDesc[state.useCase]} ${
+    state.useCase === 'language-coach'
+      ? `We'll ${modeDesc[state.practiceMode]} at ${level} level.`
+      : ''
+  } ${voiceDesc}`;
+}
+
+function updateUseCaseUI() {
+  const current = state.useCase;
+  if (current === 'language-coach') {
+    ui.contextTitle.textContent = 'Session context';
+    ui.useCaseContext.placeholder = 'Optional: add goal, scenario, or context for better responses';
+  } else if (current === 'interview-coach') {
+    ui.contextTitle.textContent = 'Interview setup';
+    ui.useCaseContext.placeholder =
+      'Example: Senior frontend engineer role, fintech domain, behavioral + system design round';
+  } else {
+    ui.contextTitle.textContent = 'Meeting setup';
+    ui.useCaseContext.placeholder =
+      'Example: Weekly product sync. Team: PM, design, engineering. Focus: launch blockers and owners.';
+  }
+}
+
+function updateModeAvailability() {
+  const disableModeTabs = state.useCase !== 'language-coach';
+  document.querySelectorAll('.mode-tab').forEach((tab) => {
+    tab.disabled = disableModeTabs;
+  });
+}
+
+function updateOptionalModelControls() {
+  if (!state.modelsLoaded) {
+    ui.loadSttBtn.style.display = 'none';
+    ui.loadTtsBtn.style.display = 'none';
+    return;
+  }
+  ui.loadSttBtn.style.display = state.sttPipe ? 'none' : 'inline-flex';
+  ui.loadTtsBtn.style.display = state.ttsPipe ? 'none' : 'inline-flex';
+  ui.loadSttBtn.disabled = state.isBusy || state.modelsLoading;
+  ui.loadTtsBtn.disabled = state.isBusy || state.modelsLoading;
 }
 
 function closeContext(ctx) {
@@ -258,9 +313,48 @@ function showScores(fluency, grammar, vocab, tip) {
   $('feedback-tips').innerHTML = tip ? `<strong>Tip:</strong> ${escHtml(tip)}` : '';
 }
 
+async function loadSTTModel() {
+  if (state.sttPipe) return true;
+  setDot(ui.dotSTT, ui.lblSTT, ui.psSTT, 'loading', 'STT loading');
+  setStatus('Loading speech-to-text model...');
+  try {
+    state.sttPipe = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny');
+    setDot(ui.dotSTT, ui.lblSTT, ui.psSTT, 'ready', 'STT ✓');
+    updateOptionalModelControls();
+    updateWelcome();
+    return true;
+  } catch (error) {
+    setDot(ui.dotSTT, ui.lblSTT, ui.psSTT, 'error', 'STT ✗');
+    toast(`STT load failed: ${error.message}`, '#ff5c5c');
+    return false;
+  }
+}
+
+async function loadTTSModel() {
+  if (state.ttsPipe) return true;
+  setDot(ui.dotTTS, ui.lblTTS, ui.psTTS, 'loading', 'TTS loading');
+  setStatus('Loading text-to-speech model...');
+  try {
+    state.ttsPipe = await pipeline('text-to-speech', 'Xenova/speecht5_tts', { quantized: false });
+    state.ttsAvailable = true;
+    setDot(ui.dotTTS, ui.lblTTS, ui.psTTS, 'ready', 'TTS ✓');
+    updateOptionalModelControls();
+    return true;
+  } catch (error) {
+    state.ttsAvailable = false;
+    setDot(ui.dotTTS, ui.lblTTS, ui.psTTS, 'ready', 'TTS (browser)');
+    toast(`TTS model unavailable: ${error.message}`, 'var(--speak)');
+    return false;
+  }
+}
+
 async function runTTS(text, msgEl) {
   const cleanText = (text || '').replace(/<[^>]+>/g, '').replace(/\[.*?\]/g, '').slice(0, 300);
   if (!cleanText) return;
+
+  if (!state.ttsPipe && state.modelProfile === 'full-voice') {
+    await loadTTSModel();
+  }
 
   if (state.ttsAvailable && state.ttsPipe) {
     setDot(ui.dotTTS, ui.lblTTS, ui.psTTS, 'active', 'TTS speaking');
@@ -299,6 +393,7 @@ async function runLLM(userText) {
   const lang = ui.targetLang.value;
   const native = ui.nativeLang.value;
   const level = ui.level.value;
+  const context = ui.useCaseContext.value.trim();
 
   const modeInstructions = {
     conversation:
@@ -308,12 +403,32 @@ async function runLLM(userText) {
     immersion: `Respond only in ${lang}. Do not use ${native}. If the user writes in ${native}, still respond in ${lang}. Keep it brief and natural.`,
   };
 
-  const systemPrompt = `You are a friendly, encouraging ${lang} language coach.
+  const systemPromptByUseCase = {
+    'language-coach': `You are a friendly, encouraging ${lang} language coach.
 The user is a ${level} ${lang} learner whose native language is ${native}.
 ${modeInstructions[state.practiceMode]}
+${context ? `Session context: ${context}` : ''}
 After your response, on a new line add: SCORES: fluency=N grammar=N vocab=N (N is 0-100)
 Then on a new line: TIP: one short actionable tip.
-Keep responses concise (2-4 sentences max for conversation).`;
+Keep responses concise (2-4 sentences max for conversation).`,
+    'interview-coach': `You are a structured interview coach and interviewer.
+Run this as a realistic interview conversation.
+Ask one focused question at a time, then evaluate the user's answer briefly.
+Give actionable improvement points.
+${context ? `Interview setup: ${context}` : 'Interview setup: general software role'}
+After your response, on a new line add: SCORES: fluency=N grammar=N vocab=N (N is 0-100)
+Then on a new line: TIP: one short actionable tip.`,
+    'meeting-notes': `You are a meeting notes assistant.
+Convert user input into concise, professional notes with:
+1) Summary
+2) Key decisions
+3) Action items with owner placeholders
+4) Risks/blockers
+Use markdown bullet points.
+${context ? `Meeting setup: ${context}` : ''}
+Do not add SCORES or TIP unless the user explicitly asks for scoring.`,
+  };
+  const systemPrompt = systemPromptByUseCase[state.useCase];
 
   state.conversationHistory.push({ role: 'user', content: userText });
   clampHistory();
@@ -410,6 +525,12 @@ function startWaveform() {
 
 async function startRecording() {
   if (!state.modelsLoaded || state.isBusy || state.isRecording) return;
+  if (!state.sttPipe) {
+    setBusy(true);
+    const loaded = await loadSTTModel();
+    setBusy(false);
+    if (!loaded) return;
+  }
   try {
     state.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
     state.monitorCtx = new AudioContext();
@@ -509,6 +630,8 @@ async function processAudio() {
 
     showTranscript(transcript);
     setDot(ui.dotSTT, ui.lblSTT, ui.psSTT, 'ready', 'STT ✓');
+    // Release STT lock before LLM stage, otherwise runLLM short-circuits on busy=true.
+    setBusy(false);
     await runLLM(transcript);
   } catch (error) {
     toast(`Transcription failed: ${error.message}`, '#ff5c5c');
@@ -521,27 +644,11 @@ async function processAudio() {
 async function loadAllModels() {
   if (state.modelsLoading) return;
   state.modelsLoading = true;
-  setStatus('Loading models...');
+  state.modelProfile = ui.modelProfile.value;
+  setStatus('Loading required models...');
 
-  try {
-    setDot(ui.dotSTT, ui.lblSTT, ui.psSTT, 'loading', 'STT loading');
-    $('ld-stt-detail').textContent = 'Downloading whisper-tiny...';
-    state.sttPipe = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny', {
-      progress_callback: (p) => {
-        if (p.status === 'progress' && p.progress) {
-          $('ld-stt-bar').style.width = `${Math.round(p.progress)}%`;
-          $('ld-stt-detail').textContent = `${p.file || ''} ${Math.round(p.progress)}%`;
-        }
-      },
-    });
-    $('ld-stt-bar').style.width = '100%';
-    $('ld-stt-detail').textContent = 'Ready';
-    setDot(ui.dotSTT, ui.lblSTT, ui.psSTT, 'ready', 'STT ✓');
-  } catch (error) {
-    $('ld-stt-detail').textContent = `Failed: ${error.message}`;
-    setDot(ui.dotSTT, ui.lblSTT, ui.psSTT, 'error', 'STT ✗');
-    toast(`STT load failed: ${error.message}`, '#ff5c5c');
-  }
+  const shouldLoadSTT = state.modelProfile !== 'text-only';
+  const shouldLoadTTS = state.modelProfile === 'full-voice';
 
   try {
     setDot(ui.dotLLM, ui.lblLLM, ui.psLLM, 'loading', 'LLM loading');
@@ -563,38 +670,70 @@ async function loadAllModels() {
     toast(`LLM load failed: ${error.message}`, '#ff5c5c');
   }
 
-  try {
-    setDot(ui.dotTTS, ui.lblTTS, ui.psTTS, 'loading', 'TTS loading');
-    $('ld-tts-detail').textContent = 'Downloading SpeechT5...';
-    ui.skipLoadBtn.style.display = 'block';
-    state.ttsPipe = await pipeline('text-to-speech', 'Xenova/speecht5_tts', {
-      quantized: false,
-      progress_callback: (p) => {
-        if (p.status === 'progress' && p.progress) {
-          $('ld-tts-bar').style.width = `${Math.round(p.progress)}%`;
-          $('ld-tts-detail').textContent = `${p.file || ''} ${Math.round(p.progress)}%`;
-        }
-      },
-    });
-    state.ttsAvailable = true;
-    $('ld-tts-bar').style.width = '100%';
-    $('ld-tts-detail').textContent = 'Ready';
-    setDot(ui.dotTTS, ui.lblTTS, ui.psTTS, 'ready', 'TTS ✓');
-  } catch (_) {
+  if (shouldLoadSTT) {
+    try {
+      setDot(ui.dotSTT, ui.lblSTT, ui.psSTT, 'loading', 'STT loading');
+      $('ld-stt-detail').textContent = 'Downloading whisper-tiny...';
+      state.sttPipe = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny', {
+        progress_callback: (p) => {
+          if (p.status === 'progress' && p.progress) {
+            $('ld-stt-bar').style.width = `${Math.round(p.progress)}%`;
+            $('ld-stt-detail').textContent = `${p.file || ''} ${Math.round(p.progress)}%`;
+          }
+        },
+      });
+      $('ld-stt-bar').style.width = '100%';
+      $('ld-stt-detail').textContent = 'Ready';
+      setDot(ui.dotSTT, ui.lblSTT, ui.psSTT, 'ready', 'STT ✓');
+    } catch (error) {
+      $('ld-stt-detail').textContent = `Failed: ${error.message}`;
+      setDot(ui.dotSTT, ui.lblSTT, ui.psSTT, 'error', 'STT ✗');
+      toast(`STT load failed: ${error.message}`, '#ff5c5c');
+    }
+  } else {
+    $('ld-stt-detail').textContent = 'Skipped (optional)';
+    setDot(ui.dotSTT, ui.lblSTT, ui.psSTT, 'idle', 'STT optional');
+  }
+
+  if (shouldLoadTTS) {
+    try {
+      setDot(ui.dotTTS, ui.lblTTS, ui.psTTS, 'loading', 'TTS loading');
+      $('ld-tts-detail').textContent = 'Downloading SpeechT5...';
+      ui.skipLoadBtn.style.display = 'block';
+      state.ttsPipe = await pipeline('text-to-speech', 'Xenova/speecht5_tts', {
+        quantized: false,
+        progress_callback: (p) => {
+          if (p.status === 'progress' && p.progress) {
+            $('ld-tts-bar').style.width = `${Math.round(p.progress)}%`;
+            $('ld-tts-detail').textContent = `${p.file || ''} ${Math.round(p.progress)}%`;
+          }
+        },
+      });
+      state.ttsAvailable = true;
+      $('ld-tts-bar').style.width = '100%';
+      $('ld-tts-detail').textContent = 'Ready';
+      setDot(ui.dotTTS, ui.lblTTS, ui.psTTS, 'ready', 'TTS ✓');
+    } catch (_) {
+      state.ttsAvailable = false;
+      $('ld-tts-detail').textContent = 'Using browser TTS fallback';
+      setDot(ui.dotTTS, ui.lblTTS, ui.psTTS, 'ready', 'TTS (browser)');
+    }
+  } else {
     state.ttsAvailable = false;
-    $('ld-tts-detail').textContent = 'Using browser TTS fallback';
+    $('ld-tts-detail').textContent = 'Skipped (browser voice)';
     setDot(ui.dotTTS, ui.lblTTS, ui.psTTS, 'ready', 'TTS (browser)');
   }
 
   ui.loaderOverlay.classList.remove('show');
   ui.skipLoadBtn.style.display = 'none';
   state.modelsLoading = false;
-  state.modelsLoaded = Boolean(state.sttPipe && state.llmPipe);
+  state.modelsLoaded = Boolean(state.llmPipe);
 
   if (state.modelsLoaded) {
     ui.appInner.style.display = 'block';
     ui.loadModelsBtn.style.display = 'none';
     setBusy(false);
+    updateOptionalModelControls();
     setStatus(`Ready — speak or type in ${ui.targetLang.value}`);
     updateWelcome();
   } else {
@@ -644,11 +783,36 @@ function registerEvents() {
     if (state.llmPipe) {
       ui.loaderOverlay.classList.remove('show');
       ui.skipLoadBtn.style.display = 'none';
-      state.modelsLoaded = Boolean(state.sttPipe && state.llmPipe);
+      state.modelsLoaded = Boolean(state.llmPipe);
       setBusy(false);
+      updateOptionalModelControls();
       setStatus(`Ready — speak or type in ${ui.targetLang.value}`);
       updateWelcome();
     }
+  });
+
+  ui.modelProfile.addEventListener('change', () => {
+    if (state.modelsLoaded) {
+      toast('Model profile change applies next reload');
+    }
+  });
+
+  ui.loadSttBtn.addEventListener('click', async () => {
+    if (state.isBusy || state.modelsLoading || state.sttPipe) return;
+    setBusy(true);
+    const loaded = await loadSTTModel();
+    setBusy(false);
+    if (loaded) {
+      setStatus('Speech input model loaded');
+    }
+  });
+
+  ui.loadTtsBtn.addEventListener('click', async () => {
+    if (state.isBusy || state.modelsLoading || state.ttsPipe) return;
+    setBusy(true);
+    const loaded = await loadTTSModel();
+    setBusy(false);
+    setStatus(loaded ? 'Neural voice model loaded' : 'Using browser voice');
   });
 
   ui.micBtn.addEventListener('click', () => {
@@ -717,6 +881,15 @@ function registerEvents() {
   ui.level.addEventListener('change', () => {
     if (state.modelsLoaded) updateWelcome();
   });
+  ui.useCase.addEventListener('change', () => {
+    state.useCase = ui.useCase.value;
+    updateUseCaseUI();
+    updateModeAvailability();
+    if (state.modelsLoaded) {
+      updateWelcome();
+      setStatus(`Ready — ${ui.useCase.options[ui.useCase.selectedIndex].text}`);
+    }
+  });
 
   window.addEventListener('beforeunload', () => {
     if (state.mediaRecorder && state.mediaRecorder.state !== 'inactive') {
@@ -731,7 +904,10 @@ function registerEvents() {
   });
 }
 
-setStatus('Click "Load AI Models" to start');
+setStatus('Click "Load Core Model" to start');
 setBusy(true);
 registerEvents();
+state.useCase = ui.useCase.value;
+updateUseCaseUI();
+updateModeAvailability();
 initReveal();
