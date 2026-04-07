@@ -1,370 +1,118 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>LinguaAI — Real-Time Language Practice Buddy</title>
-<meta name="description" content="Practice any language with an AI buddy. Speak, get corrected, and hear natural responses — all running locally in your browser."/>
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="./styles.css"/>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QwenDesk — Local AI Work Assistant</title>
+  <meta
+    name="description"
+    content="Text-first local AI assistant powered by Qwen2.5 in your browser. Rewrite, summarize, and generate replies fast."
+  />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@300;400;500&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-<div class="blob blob1"></div>
-<div class="blob blob2"></div>
-<div class="blob blob3"></div>
-
-<nav>
-  <div class="logo">
-    <div class="logo-icon">🗣️</div>
-    Lingua<em>AI</em>
-  </div>
-  <div class="nav-right">
-    <span class="nav-tag">100% local</span>
-    <a href="#how" class="nav-link">How it works</a>
-    <a href="https://github.com/xenova/transformers.js" target="_blank" class="nav-link" rel="noreferrer">GitHub ↗</a>
-  </div>
-</nav>
-
-<section class="hero" id="hero">
-  <div class="hero-left reveal">
-    <div class="hero-eyebrow">AI language coach</div>
-    <h1>Speak. Think.<br/><span class="grad">Learn.</span></h1>
-    <p class="hero-p">
-      A real-time language practice buddy running entirely in your browser.
-      Speak in your target language, get instant AI feedback, and hear natural responses — no server, no account, no cost.
-    </p>
-    <div class="hero-actions">
-      <a href="#app" class="btn-main">
-        <span>🎙️</span> Start Practicing
-      </a>
-      <a href="#how" class="btn-ghost">How it works</a>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-icon">Q</div>
+      <span>QwenDesk</span>
     </div>
-  </div>
+    <div class="topbar-meta">Text-first · Local-first</div>
+  </header>
 
-  <div class="reveal" style="animation-delay:0.15s">
-    <div class="pipeline-card">
-      <div style="font-size:11px;font-family:var(--mono);color:var(--dust2);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:1rem">Model pipeline</div>
-      <div class="pipeline-steps">
-        <div class="pipe-step">
-          <div class="pipe-connector"></div>
-          <div class="pipe-icon hear">🎧</div>
-          <div class="pipe-info">
-            <div class="pipe-label hear">① Hearing — STT</div>
-            <div class="pipe-model">whisper-tiny</div>
-            <div class="pipe-desc">Xenova/whisper-tiny · ~40MB</div>
-          </div>
-          <div class="pipe-status ps-idle" id="ps-stt">idle</div>
-        </div>
-        <div class="pipe-step">
-          <div class="pipe-connector"></div>
-          <div class="pipe-icon think">🧠</div>
-          <div class="pipe-info">
-            <div class="pipe-label think">② Thinking — LLM</div>
-            <div class="pipe-model">Qwen2.5-0.5B-Instruct</div>
-            <div class="pipe-desc">onnx-community/Qwen2.5-0.5B-Instruct · ~450MB</div>
-          </div>
-          <div class="pipe-status ps-idle" id="ps-llm">idle</div>
-        </div>
-        <div class="pipe-step">
-          <div class="pipe-icon speak">🔊</div>
-          <div class="pipe-info">
-            <div class="pipe-label speak">③ Speaking — TTS</div>
-            <div class="pipe-model">speecht5_tts</div>
-            <div class="pipe-desc">Xenova/speecht5_tts · ~75MB</div>
-          </div>
-          <div class="pipe-status ps-idle" id="ps-tts">idle</div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
+  <main class="shell">
+    <section class="hero">
+      <p class="eyebrow">Local AI Work Assistant</p>
+      <h1>Rewrite, summarize, and draft replies without heavy model overhead.</h1>
+      <p class="hero-copy">
+        This app runs on a single useful model: <strong>Qwen2.5-0.5B-Instruct</strong>. It avoids audio
+        pipelines for better reliability and faster startup.
+      </p>
+      <button id="load-model-btn" class="btn-main">Load Qwen Model</button>
+    </section>
 
-<div class="features" id="features">
-  <div class="feat reveal">
-    <div class="feat-ic">🎙️</div>
-    <h3>Real speech input</h3>
-    <p>Whisper-tiny transcribes your voice live. Supports 99 languages with automatic detection.</p>
-  </div>
-  <div class="feat reveal" style="animation-delay:0.1s">
-    <div class="feat-ic">🧠</div>
-    <h3>AI conversation partner</h3>
-    <p>Qwen2.5 understands your context, corrects grammar gently, and keeps the conversation natural.</p>
-  </div>
-  <div class="feat reveal" style="animation-delay:0.2s">
-    <div class="feat-ic">🔊</div>
-    <h3>Neural speech output</h3>
-    <p>SpeechT5 generates warm, natural-sounding audio — far beyond the robotic browser voices.</p>
-  </div>
-  <div class="feat reveal">
-    <div class="feat-ic">🔒</div>
-    <h3>Fully private</h3>
-    <p>Everything runs in WebAssembly inside your browser tab. Nothing is sent to any server.</p>
-  </div>
-  <div class="feat reveal" style="animation-delay:0.1s">
-    <div class="feat-ic">📊</div>
-    <h3>Grammar scoring</h3>
-    <p>Get instant fluency, grammar, and vocabulary scores after each exchange, with specific tips.</p>
-  </div>
-  <div class="feat reveal" style="animation-delay:0.2s">
-    <div class="feat-ic">🌍</div>
-    <h3>10+ target languages</h3>
-    <p>French, Spanish, German, Japanese, Mandarin, Italian, Portuguese, Korean, Arabic, Hindi.</p>
-  </div>
-</div>
-
-<section id="app" style="position:relative;z-index:1;padding-top:4rem">
-  <div style="max-width:900px;margin:0 auto;padding:0 2rem 1.5rem">
-    <div class="reveal">
-      <div style="font-size:11px;font-family:var(--mono);color:var(--a);text-transform:uppercase;letter-spacing:0.15em;margin-bottom:8px">Practice Lab</div>
-      <h2 style="font-size:32px;font-weight:800;letter-spacing:-0.03em;color:var(--white);margin-bottom:6px">Start a conversation</h2>
-      <p style="font-size:14px;color:var(--dust);margin-bottom:1.5rem">Load the core model first, then optionally add voice models based on the features you need.</p>
-      <button class="btn-main" id="load-models-btn" style="margin-bottom:1.5rem">⚡ Load Core Model</button>
-    </div>
-  </div>
-
-  <div id="app-inner" style="max-width:900px;margin:0 auto;padding:0 2rem;display:none">
-    <div class="status-strip" id="status-strip">
-      <div class="ss-stage"><div class="ss-dot" id="dot-stt"></div><span id="lbl-stt">STT</span></div>
-      <div class="ss-div"></div>
-      <div class="ss-stage"><div class="ss-dot" id="dot-llm"></div><span id="lbl-llm">LLM</span></div>
-      <div class="ss-div"></div>
-      <div class="ss-stage"><div class="ss-dot" id="dot-tts"></div><span id="lbl-tts">TTS</span></div>
-      <div class="ss-div"></div>
-      <div class="ss-msg" id="status-msg">Initializing…</div>
-    </div>
-
-    <div class="controls-bar">
-      <div class="ctrl-group">
-        <span class="ctrl-label">My language</span>
-        <select class="ctrl-select" id="native-lang">
-          <option value="English">English</option>
-          <option value="French">French</option>
-          <option value="Spanish">Spanish</option>
-          <option value="German">German</option>
-          <option value="Japanese">Japanese</option>
-          <option value="Mandarin Chinese">Mandarin Chinese</option>
-          <option value="Portuguese">Portuguese</option>
-          <option value="Italian">Italian</option>
-          <option value="Korean">Korean</option>
-          <option value="Arabic">Arabic</option>
-          <option value="Hindi">Hindi</option>
-          <option value="Russian">Russian</option>
-        </select>
+    <section class="panel">
+      <div class="status-row">
+        <div class="status-pill">
+          <span id="llm-dot" class="dot idle"></span>
+          <span id="llm-label">Model idle</span>
+        </div>
+        <span id="status-text" class="status-text">Load the model to start</span>
       </div>
-      <div class="ctrl-group">
-        <span class="ctrl-label">Practicing</span>
-        <select class="ctrl-select" id="target-lang">
-          <option value="French">🇫🇷 French</option>
-          <option value="Spanish">🇪🇸 Spanish</option>
-          <option value="German">🇩🇪 German</option>
-          <option value="Japanese">🇯🇵 Japanese</option>
-          <option value="Mandarin Chinese">🇨🇳 Mandarin</option>
-          <option value="Italian">🇮🇹 Italian</option>
-          <option value="Portuguese">🇧🇷 Portuguese</option>
-          <option value="Korean">🇰🇷 Korean</option>
-          <option value="Arabic">🇸🇦 Arabic</option>
-          <option value="Hindi">🇮🇳 Hindi</option>
-          <option value="Russian">🇷🇺 Russian</option>
-          <option value="English">🇬🇧 English</option>
-        </select>
-      </div>
-      <div class="ctrl-group">
-        <span class="ctrl-label">Level</span>
-        <select class="ctrl-select" id="level">
-          <option value="beginner">A1–A2 Beginner</option>
-          <option value="intermediate" selected>B1–B2 Intermediate</option>
-          <option value="advanced">C1–C2 Advanced</option>
-        </select>
-      </div>
-      <div class="ctrl-group">
-        <span class="ctrl-label">Mode</span>
-        <div class="mode-tabs">
-          <button class="mode-tab active" data-mode="conversation">💬 Chat</button>
-          <button class="mode-tab" data-mode="correction">✏️ Correct</button>
-          <button class="mode-tab" data-mode="immersion">🔥 Immersion</button>
+
+      <div class="controls">
+        <div class="field">
+          <label for="tool-select">Tool</label>
+          <select id="tool-select">
+            <option value="rewrite">Rewrite</option>
+            <option value="summarize">Summarize</option>
+            <option value="reply">Reply Generator</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="tone-select">Tone</label>
+          <select id="tone-select">
+            <option value="professional" selected>Professional</option>
+            <option value="friendly">Friendly</option>
+            <option value="direct">Direct</option>
+            <option value="empathetic">Empathetic</option>
+          </select>
         </div>
       </div>
-      <div class="ctrl-group">
-        <span class="ctrl-label">Use case</span>
-        <select class="ctrl-select" id="use-case">
-          <option value="language-coach" selected>Language Coach</option>
-          <option value="interview-coach">Interview Coach</option>
-          <option value="meeting-notes">Meeting Notes Assistant</option>
-        </select>
-      </div>
-      <div class="ctrl-group">
-        <span class="ctrl-label">Model profile</span>
-        <select class="ctrl-select" id="model-profile">
-          <option value="text-only">Text only (fastest startup)</option>
-          <option value="voice-input" selected>Voice input + browser voice</option>
-          <option value="full-voice">Full voice (includes neural TTS)</option>
-        </select>
-      </div>
-      <div class="ctrl-group">
-        <span class="ctrl-label">Optional models</span>
-        <div class="model-tools">
-          <button class="pill-btn" id="load-stt-btn" type="button" style="display:none">Load STT</button>
-          <button class="pill-btn" id="load-tts-btn" type="button" style="display:none">Load TTS</button>
-        </div>
-      </div>
-    </div>
 
-    <div class="context-box" id="context-box">
-      <div class="context-title" id="context-title">Session context</div>
-      <textarea id="use-case-context" rows="2" placeholder="Optional: add goal, scenario, or context for better responses"></textarea>
-    </div>
+      <div class="field">
+        <label for="template-select">Quick template</label>
+        <div class="template-row">
+          <select id="template-select">
+            <option value="">Select a template...</option>
+            <option value="sales-followup">Sales follow-up reply</option>
+            <option value="support-apology">Customer support apology</option>
+            <option value="interview-followup">Interview follow-up email</option>
+            <option value="meeting-recap">Meeting recap with actions</option>
+          </select>
+          <button id="apply-template-btn" class="btn-ghost" type="button">Apply</button>
+        </div>
+      </div>
 
-    <div id="voice-section">
-      <div class="waveform-wrap" id="waveform-wrap">
-        <canvas id="waveform"></canvas>
+      <div class="field">
+        <label for="context-input">Context (optional)</label>
+        <input
+          id="context-input"
+          type="text"
+          placeholder="Example: customer support refund request, urgent internal update, interview follow-up"
+        />
       </div>
-      <div class="mic-section">
-        <div class="mic-ring-outer">
-          <div class="mic-ring r1"></div>
-          <div class="mic-ring r2"></div>
-          <div class="mic-ring r3"></div>
-          <button class="mic-btn" id="mic-btn" disabled title="Click to start and stop recording">🎙️</button>
-        </div>
-        <div class="mic-hint">
-          <span id="mic-hint-text">Click to start speaking</span>
-          <small id="mic-hint-sub">Click once to record, click again to process</small>
-        </div>
-      </div>
-      <div class="text-mode-input" id="text-input-wrap">
-        <textarea id="text-input" placeholder="Or type your message here…" rows="2"></textarea>
-        <button class="text-send-btn" id="text-send-btn" disabled>Send ↗</button>
-      </div>
-    </div>
 
-    <div class="transcript-area" id="transcript-area" style="display:none">
-      <div class="area-header">
-        <div class="area-title"><div class="area-dot hear"></div>You said</div>
-        <div class="area-actions">
-          <button class="pill-btn" id="copy-transcript">copy</button>
-          <button class="pill-btn" id="edit-transcript">edit</button>
-        </div>
+      <div class="field">
+        <label for="source-input">Input</label>
+        <textarea
+          id="source-input"
+          rows="8"
+          placeholder="Paste or type text here..."
+        ></textarea>
       </div>
-      <div class="area-body" id="transcript-body">
-        <span class="area-placeholder">Waiting for speech…</span>
-      </div>
-    </div>
 
-    <div class="response-area" id="response-area" style="display:none">
-      <div class="area-header">
-        <div class="area-title"><div class="area-dot think"></div>AI Coach</div>
-        <div class="area-actions">
-          <button class="pill-btn" id="copy-response">copy</button>
-          <button class="pill-btn" id="replay-btn">🔊 replay</button>
-        </div>
+      <div class="actions">
+        <button id="run-btn" class="btn-main" disabled>Run</button>
+        <button id="clear-btn" class="btn-ghost">Clear</button>
+        <button id="copy-btn" class="btn-ghost">Copy Output</button>
       </div>
-      <div class="area-body" id="response-body">
-        <span class="area-placeholder">Waiting for response…</span>
-      </div>
-    </div>
 
-    <div class="feedback-bar" id="feedback-bar">
-      <div class="feedback-title">📊 Language Analysis</div>
-      <div class="score-grid">
-        <div class="score-item">
-          <div class="score-label">Fluency</div>
-          <div class="score-track"><div class="score-fill" id="sc-fluency" style="background:var(--speak)"></div></div>
-          <div class="score-num" id="sc-fluency-n">—</div>
+      <div class="output">
+        <div class="output-head">
+          <span>Result</span>
+          <span id="char-count">0 chars</span>
         </div>
-        <div class="score-item">
-          <div class="score-label">Grammar</div>
-          <div class="score-track"><div class="score-fill" id="sc-grammar" style="background:var(--hear)"></div></div>
-          <div class="score-num" id="sc-grammar-n">—</div>
-        </div>
-        <div class="score-item">
-          <div class="score-label">Vocabulary</div>
-          <div class="score-track"><div class="score-fill" id="sc-vocab" style="background:var(--think)"></div></div>
-          <div class="score-num" id="sc-vocab-n">—</div>
-        </div>
+        <pre id="output-box">Your result will appear here.</pre>
       </div>
-      <div class="feedback-tips" id="feedback-tips"></div>
-    </div>
+    </section>
+  </main>
 
-    <div class="chat-section">
-      <div class="chat-label">Conversation</div>
-      <div class="chat-log" id="chat-log">
-        <div class="chat-msg">
-          <div class="chat-avatar ai">🤖</div>
-          <div>
-            <div class="chat-bubble ai" id="welcome-bubble">Loading AI coach…</div>
-            <div class="chat-meta">AI Coach · just now</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section id="how" style="position:relative;z-index:1;padding:5rem 2rem;border-top:0.5px solid var(--line)">
-  <div style="max-width:700px;margin:0 auto">
-    <div style="font-size:11px;font-family:var(--mono);color:var(--a);text-transform:uppercase;letter-spacing:0.15em;margin-bottom:10px" class="reveal">Under the hood</div>
-    <h2 style="font-size:36px;font-weight:800;letter-spacing:-0.03em;color:var(--white);margin-bottom:0.75rem" class="reveal">Three models. One pipeline.</h2>
-    <p style="font-size:15px;color:var(--dust);margin-bottom:2.5rem;line-height:1.75" class="reveal">Your voice travels through three AI models, all running in WebAssembly in your browser tab. Here's exactly what happens in each step.</p>
-    <div style="display:flex;flex-direction:column;gap:1.5rem">
-      <div class="reveal" style="background:var(--ink2);border:0.5px solid var(--line2);border-left:3px solid var(--hear);border-radius:var(--r);padding:1.5rem">
-        <div style="font-size:11px;font-family:var(--mono);color:var(--hear);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">① Hearing — Speech to Text</div>
-        <div style="font-size:15px;font-weight:700;color:var(--white);margin-bottom:8px">Xenova/whisper-tiny</div>
-        <p style="font-size:13px;color:var(--dust);line-height:1.7">Your microphone audio is captured as a Float32Array, resampled to 16kHz, and fed into Whisper. The model uses an encoder-decoder transformer to output a token sequence which is decoded to text. WebGPU acceleration is used automatically when available.</p>
-      </div>
-      <div class="reveal" style="background:var(--ink2);border:0.5px solid var(--line2);border-left:3px solid var(--think);border-radius:var(--r);padding:1.5rem">
-        <div style="font-size:11px;font-family:var(--mono);color:var(--think);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">② Thinking — Language Model</div>
-        <div style="font-size:15px;font-weight:700;color:var(--white);margin-bottom:8px">onnx-community/Qwen2.5-0.5B-Instruct</div>
-        <p style="font-size:13px;color:var(--dust);line-height:1.7">The transcript is formatted as a chat prompt with a system message defining the coach persona, target language, and correction mode. Qwen2.5 generates the response token-by-token. The response includes a correction markup tag that the UI parses to highlight errors.</p>
-      </div>
-      <div class="reveal" style="background:var(--ink2);border:0.5px solid var(--line2);border-left:3px solid var(--speak);border-radius:var(--r);padding:1.5rem">
-        <div style="font-size:11px;font-family:var(--mono);color:var(--speak);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">③ Speaking — Text to Speech</div>
-        <div style="font-size:15px;font-weight:700;color:var(--white);margin-bottom:8px">Xenova/speecht5_tts</div>
-        <p style="font-size:13px;color:var(--dust);line-height:1.7">The clean response text is passed to SpeechT5, a fine-tuned TTS model. A speaker embedding from the CMU ARCTIC dataset shapes the voice character. The output is a Float32Array of PCM samples played back via the Web Audio API.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<footer>
-  <div class="footer-logo">Lingua<em>AI</em></div>
-  <div class="footer-note">Powered by Transformers.js · Whisper · Qwen2.5 · SpeechT5 · runs 100% in your browser</div>
-</footer>
-
-<div class="loader-overlay" id="loader-overlay">
-  <div class="loader-card">
-    <div class="loader-title">Loading AI Models</div>
-    <div class="loader-sub">First load downloads ~565MB · cached after that</div>
-    <div class="loader-steps">
-      <div class="load-step">
-        <div class="load-step-icon" style="background:var(--hear-dim)">🎧</div>
-        <div class="load-step-info">
-          <div class="load-step-name">Whisper Tiny <span style="font-size:10px;color:var(--dust2);font-family:var(--mono)">~40MB</span></div>
-          <div class="load-step-detail" id="ld-stt-detail">waiting…</div>
-          <div class="load-progress-track"><div class="load-progress-fill" id="ld-stt-bar" style="background:var(--hear)"></div></div>
-        </div>
-      </div>
-      <div class="load-step">
-        <div class="load-step-icon" style="background:var(--think-dim)">🧠</div>
-        <div class="load-step-info">
-          <div class="load-step-name">Qwen2.5-0.5B <span style="font-size:10px;color:var(--dust2);font-family:var(--mono)">~450MB</span></div>
-          <div class="load-step-detail" id="ld-llm-detail">waiting…</div>
-          <div class="load-progress-track"><div class="load-progress-fill" id="ld-llm-bar" style="background:var(--think)"></div></div>
-        </div>
-      </div>
-      <div class="load-step">
-        <div class="load-step-icon" style="background:var(--speak-dim)">🔊</div>
-        <div class="load-step-info">
-          <div class="load-step-name">SpeechT5 TTS <span style="font-size:10px;color:var(--dust2);font-family:var(--mono)">~75MB</span></div>
-          <div class="load-step-detail" id="ld-tts-detail">waiting…</div>
-          <div class="load-progress-track"><div class="load-progress-fill" id="ld-tts-bar" style="background:var(--speak)"></div></div>
-        </div>
-      </div>
-    </div>
-  </div>
-  <button class="skip-btn" id="skip-load-btn" style="display:none">Skip TTS (use browser voice) ↓</button>
-</div>
-
-<script type="module" src="./app.js"></script>
+  <script type="module" src="./app.js"></script>
 </body>
 </html>
